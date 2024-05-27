@@ -14,27 +14,16 @@ device = (
 print(f"Using {device} device")
 
 
-class ExtrinsicModule:
+class WorldModel:
 
     def __init__(self):
-        self.nn = NeuralNetwork(4, 64, 1).to(device)
+        self.nn = NeuralNetwork(10, 64, 5).to(device)
         self.optimizer = optim.Adam(self.nn.parameters(), lr=0.001)
-        self.criterion = nn.BCELoss()
+        self.criterion = nn.MSELoss()
         self.num_epochs = 10
-        self.weights_init_normal(self.nn)
 
     ## takes in a module and applies the specified weight initialization
-    def weights_init_normal(self, m):
-        '''Takes in a module and initializes all linear layers with weight
-           values taken from a normal distribution.'''
-        classname = m.__class__.__name__
-        # for every Linear layer in a model
-        if classname.find('Linear') != -1:
-            y = m.in_features
-            # m.weight.data shoud be taken from a normal distribution
-            m.weight.data.normal_(0.0, 1 / np.sqrt(y))
-            # m.bias.data should be 0
-            m.bias.data.fill_(0)
+
 
 
     def train(self, X, y):
@@ -83,7 +72,7 @@ class NeuralNetwork(nn.Module):
         self.hidden = nn.Linear(input_size, hidden_size)  # hidden
         self.hidden2 = nn.Linear(hidden_size, hidden_size)  # hidden2
         self.output = nn.Linear(hidden_size, output_size)
-        self.sigmoid = nn.Sigmoid()
+
 
 
     def forward(self, x):
@@ -91,13 +80,11 @@ class NeuralNetwork(nn.Module):
         x = self.relu(x)
         x = self.hidden2(x)
         x = self.relu(x)
-
         x = self.output(x)
-        x = self.sigmoid(x)
         return x
 
 
 if __name__ == "__main__":
     X, y = generate_data()
-    module = ExtrinsicModule()
+    module = WorldModel()
     module.train(X, y)

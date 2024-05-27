@@ -17,6 +17,7 @@ device = (
     if torch.backends.mps.is_available()
     else "cpu"
 )
+
 print(f"Using {device} device")
 
 
@@ -30,7 +31,7 @@ robobo.connect()
 sim.connect()
 
 #sim.resetSimulation()
-actions=[-90,-45,0,45,90]
+actions=[-30,-15,0,15,30]
 
 
 ##state x,y,theta
@@ -61,6 +62,10 @@ def word_model(state):
     return predicted_state,finish
 
 
+def word_model_neural(state):
+
+
+    return predicted_state,finish
 
 memory = deque(maxlen=500)
 extrinsic_memory = deque(maxlen=50)
@@ -135,7 +140,7 @@ def perform_action(action):
             robobo.moveWheels(sign * 2 * speed_factor, sign * (-2 * speed_factor))
             robobo.wait(0.1)
 
-        error = abs(robobo.readOrientationSensor().yaw - target)
+        #error = abs(robobo.readOrientationSensor().yaw - target)
         #print('error:{}\n'.format(error), flush=True)
         #robobo.stopMotors()
 
@@ -163,10 +168,15 @@ def get_neural_action(perception):
     utility=[]
     for a in range(len(actions)):
         input_state=perception[:]
+        if perception[2] > 0 and a!=2:
+            input_state=[0,0,0]
+        if perception[2] == 0 and a != 2:
+            input_state = [0, 20, 30]
         input_state.append(a)
         input_state = torch.tensor(input_state,dtype=torch.float32)
         out = extrinsic.nn(input_state)
         utility.append(out.detach().numpy())
+    print("Neural output",utility)
     return actions[np.argmax(utility)]
 
 #robobo.wait(1)
@@ -174,8 +184,11 @@ robobo.moveTiltTo(105,100,wait=True)
 
 predict_state=(0,0,0,0)
 action=0
-eps=0.99
+eps=0.2
 extrinsic = ExtrinsicModule()
+extrinsic.load("extrinsic_nn.pt")
+train_count=0
+i=0
 while True:
     loc = sim.getRobotLocation(0)
     real_state=(loc['position']['x'],loc['position']['z'],loc['rotation']['y'],action)
@@ -190,11 +203,18 @@ while True:
         print("Novelty",action)
     else:
         action=get_neural_action(perception)
-        print("Neural",action)
+        print("Neural",action,"train count:",train_count)
     perception.append(action)
     extrinsic_memory.append(perception)
 
     perform_action(action)
+    i+=1
+    if i>1000:
+        i=0
+        sim.resetSimulation()
+        robobo.wait(1)
+        robobo.moveTiltTo(105, 100)
+        extrinsic_memory = deque(maxlen=50)
     if finish:
         #robobo.wait(1)
         robobo.stopMotors()
@@ -210,4 +230,7 @@ while True:
         extrinsic.train(X,y)
         print("\nTrain Complete")
         torch.save(extrinsic.nn.state_dict(),"extrinsic_nn.pt")
+
+        extrinsic_memory = deque(maxlen=50)
+        train_count+=1
 
