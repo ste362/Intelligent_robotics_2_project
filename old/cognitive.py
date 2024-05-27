@@ -6,9 +6,9 @@ from robobopy.utils.Color import Color
 from robobosim.RoboboSim import RoboboSim
 import numpy as np
 from robobopy.utils.IR import IR
-import torch.nn as nn
 
 from extrinsic import ExtrinsicModule
+from world_model import WorldModelNN
 
 device = (
     "cuda"
@@ -63,12 +63,32 @@ def word_model(state):
 
 
 def word_model_neural(state):
+    predicted_states=[]
+    for action in range(len(actions)):
+        ## create one hot vector for the action
+        one_hot=[0 for i in range(len(actions))]
+        one_hot[action]=1
+
+        input_state=state[:-1].extend(one_hot) ## remove the old action and add the one hot encoding
+
+        input_state = torch.tensor(input_state, dtype=torch.float32)
+
+        out = world_model.nn(input_state)
+        predicted_states.append(out.detach().numpy())
+
+    return predicted_states
 
 
-    return predicted_state,finish
 
-memory = deque(maxlen=500)
-extrinsic_memory = deque(maxlen=50)
+
+
+
+
+
+
+
+
+
 n=1/2
 l=1
 def calc_novelty(new_state):
@@ -88,8 +108,6 @@ def get_action(predict_state):
         novelty_array.append(calc_novelty(p))
     #print(novelty_array)
     return predict_state[np.argmax(novelty_array)]
-
-
 
 
 def compute_target_angle(action):
@@ -164,48 +182,69 @@ def subtract(t1, t2):
     return (round(abs(t1[0]-t2[0]),1), round(abs(t1[1]-t2[1]),1), round(abs(t1[2]-t2[2]),1))
 
 
-def get_neural_action(perception):
+def get_neural_action(predicted_states):
     utility=[]
-    for a in range(len(actions)):
-        input_state=perception[:]
-        if perception[2] > 0 and a!=2:
-            input_state=[0,0,0]
-        if perception[2] == 0 and a != 2:
-            input_state = [0, 20, 30]
-        input_state.append(a)
-        input_state = torch.tensor(input_state,dtype=torch.float32)
+    for predicted_state in predicted_states:
+        input_state=predicted_state[3:6]
+        #if perception[2] > 0 and a!=2:
+        #    input_state=[0,0,0]
+        #if perception[2] == 0 and a != 2:
+        #    input_state = [0, 20, 30]
+        #input_state.append(a)
+        #input_state = torch.tensor(input_state,dtype=torch.float32)
         out = extrinsic.nn(input_state)
         utility.append(out.detach().numpy())
     print("Neural output",utility)
-    return actions[np.argmax(utility)]
+    return np.argmax(utility)
+
+def get_real_state(action):              #return the (x,y,theta,IR,RED_pos, RED_size, action)
+    loc = sim.getRobotLocation(0)
+    x=loc['position']['x']
+    y=loc['position']['z']
+    theta=loc['rotation']['y']
+    ir=robobo.readIRSensor(IR.FrontC)
+    red_pos=robobo.readColorBlob(Color.RED).posx
+    red_size=robobo.readColorBlob(Color.RED).size
+    return [x, y, theta, ir, red_pos, red_size, action]
 
 #robobo.wait(1)
 robobo.moveTiltTo(105,100,wait=True)
+
+
+
+memory = deque(maxlen=500)
+extrinsic_memory = deque(maxlen=50)
+predicted_state_memory = deque(maxlen=5000)
 
 predict_state=(0,0,0,0)
 action=0
 eps=0.2
 extrinsic = ExtrinsicModule()
+world_model = WorldModelNN()
 extrinsic.load("extrinsic_nn.pt")
 train_count=0
 i=0
 while True:
-    loc = sim.getRobotLocation(0)
-    real_state=(loc['position']['x'],loc['position']['z'],loc['rotation']['y'],action)
+    real_state=get_real_state(action)
+
     #print("Error prediction (x,y,theta):",subtract(real_state,predict_state),'action:',action)
+
+    if real_state[5] > 400: ##finish
+        finish = True
+
     memory.append(real_state)
-    predict_states,finish=word_model(real_state)
-    perception = [robobo.readIRSensor(IR.FrontC), robobo.readColorBlob(Color.RED).posx,
-                  robobo.readColorBlob(Color.RED).size]
+    predicted_states=word_model_neural(real_state)
+    #perception = [robobo.readIRSensor(IR.FrontC), robobo.readColorBlob(Color.RED).posx,robobo.readColorBlob(Color.RED).size]
+
     if np.random.random() < eps:
-        predict_state=get_action(predict_states)
+        predict_state=get_action(predicted_states)
         action=predict_state[3]
         print("Novelty",action)
     else:
-        action=get_neural_action(perception)
+        action=get_neural_action(predicted_states)
         print("Neural",action,"train count:",train_count)
-    perception.append(action)
-    extrinsic_memory.append(perception)
+
+    extrinsic_memory.append(predicted_states[action][3:6])
 
     perform_action(action)
     i+=1
