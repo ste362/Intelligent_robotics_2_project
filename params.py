@@ -1,5 +1,5 @@
 from enum import Enum
-from intrinsic import IntrinsicModule
+from intrinsic_module import IntrinsicModule
 
 
 class Params(Enum):

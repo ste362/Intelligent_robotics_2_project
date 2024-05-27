@@ -7,7 +7,7 @@ from robobosim.RoboboSim import RoboboSim
 import numpy as np
 from robobopy.utils.IR import IR
 
-from extrinsic import ExtrinsicModule
+from extrinsic_module import (ExtrinsicModule)
 from world_model import WorldModelNN
 
 device = (

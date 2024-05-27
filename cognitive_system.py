@@ -1,7 +1,7 @@
 from collections import deque
 
-from extrinsic import ExtrinsicModule
-from intrinsic import IntrinsicModule
+from extrinsic_module import ExtrinsicModule
+from intrinsic_module import IntrinsicModule
 from params import Params
 from world_model import WorldModelNN, WorldModel
 
@@ -22,7 +22,8 @@ class CognitiveSystem:
             num_epochs=10,
             memory=extrinsic_memory,
             device=device,
-            #path='extrinsic_nn.pt'
+            in_path='models/extrinsic/extrinsic_nn.pt',
+            out_path='models/extrinsic/extrinsic_nn.pt',
         )
         self.world = WorldModel(
             lr=0.001,
@@ -30,5 +31,6 @@ class CognitiveSystem:
             memory_in=input_world_memory,
             memory_out=memory,
             device=device,
-            path='world_nn.pt'
+            in_path='models/world/world_nn.pt',
+            out_path='models/world/world_nn.pt',
         )

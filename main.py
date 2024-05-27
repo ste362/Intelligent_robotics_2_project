@@ -187,7 +187,7 @@ class Environment:
                 X = extrinsic.memory
                 y = [x / len(X) for x in range(len(X))]
                 extrinsic.train(X, y)
-                extrinsic.save()
+                extrinsic.save(train_count)
 
                 extrinsic.reset_memory()
                 finish = False

@@ -12,7 +12,7 @@ from params import Params
 
 class WorldModelNN:
 
-    def __init__(self, lr=0.001, num_epochs=10, memory_in=deque(maxlen=500), memory_out=deque(maxlen=500), path=None, device='cpu', debug=False, batch_size=2):
+    def __init__(self, lr=0.001, num_epochs=10, memory_in=deque(maxlen=500), memory_out=deque(maxlen=500), in_path=None, out_path=None, device='cpu', debug=False, batch_size=2):
         self.nn = NeuralNetwork(11, 64, 6).to(device)
         self.optimizer = optim.Adam(self.nn.parameters(), lr=lr)
         self.criterion = nn.MSELoss()
@@ -20,9 +20,9 @@ class WorldModelNN:
         self.actions = [-30,-15,0,15,30]
         self.memory_in = memory_in
         self.memory_out = memory_out
-        self.path = path
-        if path is not None:
-            self.load(path)
+        self.in_path = in_path
+        self.out_path = out_path
+        self.load()
         self.debug = debug
         self.device = device
         self.batch_size = batch_size
@@ -58,20 +58,18 @@ class WorldModelNN:
 
         print("Addestramento completato!")
 
-    def load(self, path=None):
-        if path is not None and os.path.exists(path):
-            self.nn.load_state_dict(torch.load(path))
+    def load(self):
+        if self.in_path is not None:
+            self.nn.load_state_dict(torch.load(self.in_path))
             self.nn.eval()
         else:
-            if self.debug: print(f'File {path} not exist!')
+            print(f'No load function enabled for World Model!')
 
-    def save(self, path=None):
-        if path is not None and os.path.exists(path):
-            torch.save(self.nn.state_dict(), path)
-        elif self.path is not None and os.path.exists(self.path):
-            torch.save(self.nn.state_dict(), self.path)
+    def save(self, n=0):
+        if self.out_path is not None:
+            torch.save(self.nn.state_dict(), f'{self.out_path[:-3]}_{n}.pt')
         else:
-            if self.debug: print(f'File {path} not exist!')
+            print(f'No save function enabled for World Model!')
 
     def predict(self, state):
         input_states=[]

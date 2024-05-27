@@ -11,16 +11,16 @@ from torch.utils.data import TensorDataset, DataLoader
 
 class ExtrinsicModule:
 
-    def __init__(self, memory=deque(maxlen=50), lr=0.001, num_epochs=10, path=None, device='cpu', debug=False, batch_size=2):
+    def __init__(self, memory=deque(maxlen=50), lr=0.001, num_epochs=10, in_path=None, out_path=None, device='cpu', debug=False, batch_size=2):
         self.nn = NeuralNetwork(3, 64, 1).to(device)
         self.optimizer = optim.Adam(self.nn.parameters(), lr=lr)
         self.criterion = nn.BCELoss()
         self.num_epochs = num_epochs
         self.memory = memory
         self.mem_size = memory.maxlen
-        self.path = path
-        if path is not None:
-            self.load(path)
+        self.out_path = out_path
+        self.in_path = in_path
+        self.load()
         self.debug = debug
         self.device = device
         self.batch_size = batch_size
@@ -56,20 +56,18 @@ class ExtrinsicModule:
 
         if self.debug: print("Extrinsic train completed!")
 
-    def load(self, path=None):
-        if path is not None and os.path.exists(path):
-            self.nn.load_state_dict(torch.load(path))
+    def load(self):
+        if self.in_path is not None:
+            self.nn.load_state_dict(torch.load(self.in_path))
             self.nn.eval()
         else:
-            if self.debug: print(f'File {path} not exist!')
+            print(f'No load function enabled for Extrinsic Model!')
 
-    def save(self, path=None):
-        if path is not None and os.path.exists(path):
-            torch.save(self.nn.state_dict(), path)
-        elif self.path is not None and os.path.exists(self.path):
-            torch.save(self.nn.state_dict(), self.path)
+    def save(self, n=0):
+        if self.out_path is not None:
+            torch.save(self.nn.state_dict(), f'{self.out_path[:-3]}_{n}.pt')
         else:
-            if self.debug: print(f'File {path} not exist!')
+            print(f'No save function enabled for Extrinsic Model!')
 
     def get_action(self, predicted_states):
         utility = []
