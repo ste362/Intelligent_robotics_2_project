@@ -18,6 +18,9 @@ class CognitiveSystem:
             memory=memory,
         )
         self.extrinsic = ExtrinsicModule(
+            nn_input_size=Params.Extrinsic.input_nn_size.value,
+            nn_hidden_size=Params.Extrinsic.hidden_nn_size.value,
+            nn_output_size=Params.Extrinsic.output_nn_size.value,
             lr=Params.Extrinsic.lr.value,
             num_epochs=Params.Extrinsic.epochs.value,
             batch_size=Params.Extrinsic.batch_size.value,
@@ -28,25 +31,22 @@ class CognitiveSystem:
             debug=Params.Extrinsic.debug.value,
         )
         self.world = WorldModel(
-            lr=Params.World.lr.value,
-            num_epochs=Params.World.epochs.value,
-            batch_size=Params.World.batch_size.value,
-            memory_in=input_world_memory,
-            memory_out=memory,
-            device=device,
-            in_path=Params.World.nn_path.value,
-            out_path=Params.World.nn_path.value,
+            actions=Params.Action.actions.value,
             debug=Params.World.debug.value,
         )
 
         self.world_nn = WorldModelNN(
+            actions=Params.Action.actions.value,
+            nn_input_size=Params.World.input_nn_size.value,
+            nn_hidden_size=Params.World.hidden_nn_size.value,
+            nn_output_size=Params.World.output_nn_size.value,
             lr=Params.World.lr.value,
             num_epochs=Params.World.epochs.value,
             batch_size=Params.World.batch_size.value,
             memory_in=input_world_memory,
             memory_out=memory,
             device=device,
-            in_path=Params.World.nn_path.value,
-            out_path=Params.World.nn_path.value,
+            in_path=Params.World.nn_in_path.value,
+            out_path=Params.World.nn_out_path.value,
             debug=Params.World.debug.value,
         )

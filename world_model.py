@@ -7,16 +7,24 @@ import torch.nn as nn
 from torch import optim
 from torch.utils.data import TensorDataset, DataLoader
 
+from params import Colors
+
 
 class WorldModelNN:
 
-    def __init__(self, lr=0.001, num_epochs=10, memory_in=deque(maxlen=500), memory_out=deque(maxlen=500), in_path=None,
+    def __init__(self,
+                 actions,
+                 nn_input_size=8,
+                 nn_hidden_size=64,
+                 nn_output_size=6,
+                 lr=0.001, num_epochs=10, memory_in=deque(maxlen=500),
+                 memory_out=deque(maxlen=500), in_path=None,
                  out_path=None, device='cpu', debug=False, batch_size=2):
-        self.nn = NeuralNetwork(8, 64, 3).to(device)
+        self.nn = NeuralNetwork(nn_input_size, nn_hidden_size, nn_output_size).to(device)
         self.optimizer = optim.Adam(self.nn.parameters(), lr=lr)
         self.criterion = nn.MSELoss()
         self.num_epochs = num_epochs
-        self.actions = [-30, -15, 0, 15, 30]
+        self.actions = actions
         self.memory_in = memory_in
         self.memory_out = memory_out
         self.in_path = in_path
@@ -28,7 +36,7 @@ class WorldModelNN:
 
     def train(self, X, y):
 
-        print("Start Train World Model ....\n")
+        print("\n\nStart Train World Model ....")
 
         X = torch.tensor(X, dtype=torch.float32)
         y = torch.tensor(y, dtype=torch.float32)
@@ -56,16 +64,15 @@ class WorldModelNN:
                 print(
                     f'Epoch [{epoch + 1}/{self.num_epochs}], Step [{i + 1}/{len(train_loader)}], Loss: {loss.item():.4f}')
 
-        print("Addestramento completato!")
+        print("Addestramento completato!\n\n")
 
     def load(self):
-        print("Load Model")
-        print(self.in_path)
         if self.in_path is not None and os.path.exists(self.in_path):
             self.nn.load_state_dict(torch.load(self.in_path))
             self.nn.eval()
+            print(f'{Colors.OKGREEN}Model {self.in_path} correctly loaded for WORLD module!{Colors.ENDC}')
         else:
-            print(f'No load function enabled for World Model!')
+            print(f'{Colors.FAIL}No model loaded for WORLD module!{Colors.ENDC}')
 
     def save(self, n=0):
         if self.out_path is not None:
@@ -119,9 +126,11 @@ class NeuralNetwork(nn.Module):
 
 # Mathematic World Model
 class WorldModel:
-    def __init__(self, debug=False, **kwarg):
+    def __init__(self,
+                 actions,
+                 debug=False, **kwarg):
         self.debug = debug
-        self.actions = [-30, -15, 0, 15, 30]
+        self.actions = actions
 
     def train(self, X, y):
         pass

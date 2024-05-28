@@ -7,12 +7,18 @@ import torch.nn as nn
 from torch import optim
 from torch.utils.data import TensorDataset, DataLoader
 
+from params import Colors
 
 
 class ExtrinsicModule:
 
-    def __init__(self, memory=deque(maxlen=50), lr=0.001, num_epochs=10, in_path=None, out_path=None, device='cpu', debug=False, batch_size=2):
-        self.nn = NeuralNetwork(3, 64, 1).to(device)
+    def __init__(self,
+                 nn_input_size=3,
+                 nn_hidden_size=64,
+                 nn_output_size=1,
+                 memory=deque(maxlen=50), lr=0.001, num_epochs=10,
+                 in_path=None, out_path=None, device='cpu', debug=False, batch_size=2):
+        self.nn = NeuralNetwork(nn_input_size, nn_hidden_size, nn_output_size).to(device)
         self.optimizer = optim.Adam(self.nn.parameters(), lr=lr)
         self.criterion = nn.BCELoss()
         self.num_epochs = num_epochs
@@ -52,7 +58,7 @@ class ExtrinsicModule:
 
             if self.debug and (epoch + 1) % 10 == 0:
                 print(
-                    f'Epoch [{epoch + 1}/{self.num_epochs}], Step [{i + 1}/{len(train_loader)}], Loss: {loss.item():.4f}')
+                    f'Epoch [{epoch + 1}/{self.num_epochs}], Step [{i + 1}/{self.batch_size}], Loss: {loss.item():.4f}')
 
         if self.debug: print("Extrinsic train completed!")
 
@@ -60,8 +66,9 @@ class ExtrinsicModule:
         if self.in_path is not None and os.path.exists(self.in_path):
             self.nn.load_state_dict(torch.load(self.in_path))
             self.nn.eval()
+            print(f'{Colors.OKGREEN}Model {self.in_path} correctly loaded for EXTRINSIC module!{Colors.ENDC}')
         else:
-            print(f'No load function enabled for Extrinsic Model!')
+            print(f'{Colors.FAIL}No model loaded for EXTRINSIC module!{Colors.ENDC}')
 
     def save(self, n=0):
         if self.out_path is not None:
@@ -73,11 +80,6 @@ class ExtrinsicModule:
         utility = []
         for predicted_state in predicted_states:
             input_state = predicted_state[:]
-            # if perception[2] > 0 and a!=2:
-            #    input_state=[0,0,0]
-            # if perception[2] == 0 and a != 2:
-            #    input_state = [0, 20, 30]
-            # input_state.append(a)
             input_state = torch.tensor(input_state,dtype=torch.float32)
             input_state = input_state.to(self.device)
             out = self.nn(input_state)
