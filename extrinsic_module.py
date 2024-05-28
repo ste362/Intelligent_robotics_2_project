@@ -57,7 +57,7 @@ class ExtrinsicModule:
         if self.debug: print("Extrinsic train completed!")
 
     def load(self):
-        if self.in_path is not None:
+        if self.in_path is not None and os.path.exists(self.in_path):
             self.nn.load_state_dict(torch.load(self.in_path))
             self.nn.eval()
         else:

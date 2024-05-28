@@ -7,17 +7,16 @@ import torch.nn as nn
 from torch import optim
 from torch.utils.data import TensorDataset, DataLoader
 
-from params import Params
-
 
 class WorldModelNN:
 
-    def __init__(self, lr=0.001, num_epochs=10, memory_in=deque(maxlen=500), memory_out=deque(maxlen=500), in_path=None, out_path=None, device='cpu', debug=False, batch_size=2):
+    def __init__(self, lr=0.001, num_epochs=10, memory_in=deque(maxlen=500), memory_out=deque(maxlen=500), in_path=None,
+                 out_path=None, device='cpu', debug=False, batch_size=2):
         self.nn = NeuralNetwork(11, 64, 6).to(device)
         self.optimizer = optim.Adam(self.nn.parameters(), lr=lr)
         self.criterion = nn.MSELoss()
         self.num_epochs = num_epochs
-        self.actions = [-30,-15,0,15,30]
+        self.actions = [-30, -15, 0, 15, 30]
         self.memory_in = memory_in
         self.memory_out = memory_out
         self.in_path = in_path
@@ -45,7 +44,7 @@ class WorldModelNN:
                 target = target.to(self.device)
 
                 outputs = self.nn(inputs)
-                loss = self.criterion(outputs, torch.reshape(target, (len(target),6)))
+                loss = self.criterion(outputs, torch.reshape(target, (len(target), 6)))
 
                 # Backward pass e ottimizzazione
                 self.optimizer.zero_grad()
@@ -72,10 +71,10 @@ class WorldModelNN:
             print(f'No save function enabled for World Model!')
 
     def predict(self, state):
-        input_states=[]
+        input_states = []
         predicted_states = []
         for action in range(len(self.actions)):
-            if  action==2 and state[3]>15:
+            if action == 2 and state[3] > 15:
                 print("Muro")
             else:
                 ## create one hot vector for the action
@@ -86,15 +85,14 @@ class WorldModelNN:
                 input_state.extend(one_hot)
                 input_states.append(input_state)
 
-
                 input_state = torch.tensor(input_state, dtype=torch.float32)
-                input_state=input_state.to(self.device)
+                input_state = input_state.to(self.device)
                 out = self.nn(input_state)
-                out=out.cpu()
+                out = out.cpu()
                 predicted_states.append(out.detach().numpy())
                 #print(list(out.detach().numpy()))
 
-        return input_states,predicted_states
+        return input_states, predicted_states
 
 
 class NeuralNetwork(nn.Module):
@@ -105,8 +103,6 @@ class NeuralNetwork(nn.Module):
         self.hidden2 = nn.Linear(hidden_size, hidden_size)  # hidden2
         self.output = nn.Linear(hidden_size, output_size)
 
-
-
     def forward(self, x):
         x = self.hidden(x)
         x = self.relu(x)
@@ -116,19 +112,11 @@ class NeuralNetwork(nn.Module):
         return x
 
 
-
-
-
-
-
-
-
-
 # Mathematic World Model
 class WorldModel:
     def __init__(self, debug=False, **kwarg):
         self.debug = debug
-        self.actions = [-30,-15,0,15,30]
+        self.actions = [-30, -15, 0, 15, 30]
 
     def train(self, X, y):
         pass
@@ -149,12 +137,12 @@ class WorldModel:
                 new_x = x + 60 * np.sin(angle)
                 new_y = y + 60 * np.cos(angle)
                 if red_size > 0:
-                    predicted_states.append([new_x, new_y, theta, ir ,red_pos,red_size+150])
+                    predicted_states.append([new_x, new_y, theta, ir, red_pos, red_size + 150])
                 elif state[3] < 15:  # muro
-                    predicted_states.append([new_x, new_y, theta, ir ,red_pos,red_size])
+                    predicted_states.append([new_x, new_y, theta, ir, red_pos, red_size])
 
             else:
-                new_angle = theta + action
+                new_angle = theta + self.actions[action]
                 if new_angle > 359:
                     new_angle -= 360
                 elif new_angle < 0:
@@ -162,7 +150,7 @@ class WorldModel:
 
                 #se sto girando a destra
 
-                new_red_pos=red_pos
+                new_red_pos = red_pos
                 """
                 d = 500 - ir
                 if d < 0: d = 0
@@ -189,6 +177,5 @@ class WorldModel:
                         print(new_red_pos,action)
                 """
                 predicted_states.append([x, y, new_angle, ir, new_red_pos, red_size])
-
 
         return input_states, predicted_states

@@ -1,14 +1,12 @@
 import random
-from collections import deque
-
-import numpy as np
 import torch
 from robobopy.Robobo import Robobo
 from robobopy.utils.Color import Color
 from robobosim.RoboboSim import RoboboSim
 from robobopy.utils.IR import IR
 
-from cognitive2 import CognitiveSystem
+from cognitive_system import CognitiveSystem
+from params import Params
 
 
 class Environment:
@@ -50,7 +48,7 @@ class Environment:
         ir = self.robobo.readIRSensor(IR.FrontC)
         red_pos = self.robobo.readColorBlob(Color.RED).posx
         red_size = self.robobo.readColorBlob(Color.RED).size
-        print(red_pos)
+        #print(red_pos)
         return [x, y, theta, ir, red_pos, red_size]
 
     def compute_target_angle(self, action):
@@ -87,7 +85,7 @@ class Environment:
     def perform_action(self, action):
         speed_factor = 3
         # print('action:{}\tstart:{}\ttarget:{}\r'.format(action, robobo.readOrientationSensor().yaw, target), flush=True)
-        action=self.cognitive.world.actions[action]
+        action = self.cognitive.world.actions[action]
 
         if action == 0:
             self.robobo.moveWheels(10, 10)
@@ -105,83 +103,78 @@ class Environment:
             # print('error:{}\n'.format(error), flush=True)
             # robobo.stopMotors()
 
-    def interact(self):
+    def interact_nn(self):
         intrinsic = self.cognitive.intrinsic
         extrinsic = self.cognitive.extrinsic
         world = self.cognitive.world
         env = self
 
-        eps = 0.0
+        eps = Params.eps.value
         train_count = 0
         i = 0
-        #world.memory_in.append([0,0,0,0,0,0,0,0,1,0,0])
-        finish=False
-        predicted_state=[]
-        append=True
+        world.memory_in.append([0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0])
+        finish = False
+        predicted_state = []
+        append = True
         while True:
 
             real_state = env.get_env_state()
-            #real_state.extend(action)
-            #print("\n predicted state",predicted_state,"\n real state",real_state,"\n")
+            real_state.extend(action)
+            # print("\n predicted state",predicted_state,"\n real state",real_state,"\n")
             if real_state[5] > 400:  ##finish
                 finish = True
 
             if append:
                 intrinsic.memory.append(real_state)
-                #append=False
+                append = False
 
-            if i%10==0:
+            if i % 10 == 0:
                 env.robobo.stopMotors()
-                #world.train(world.memory_in, world.memory_out)
-                #world.save()
+                world.train(world.memory_in, world.memory_out)
+                world.save()
 
-            input_states,predicted_states = world.predict(real_state)
+            input_states, predicted_states = world.predict(real_state)
             # perception = [robobo.readIRSensor(IR.FrontC), robobo.readColorBlob(Color.RED).posx,robobo.readColorBlob(Color.RED).size]
 
-            rand=random.random()
+            rand = random.random()
             print(rand)
             if rand < eps:
-                #rand = np.random.random()
-                action=intrinsic.get_action(predicted_states)    #action = 2 if len(predicted_states)==5 else np.random.random_integers(0,1)  #
+                # rand = np.random.random()
+                action = intrinsic.get_action(predicted_states)  # action = 2 if len(predicted_states)==5 else np.random.random_integers(0,1)  #
                 print("Novelty", action)
             else:
                 action = extrinsic.get_action(predicted_states)
                 print("Neural", action)
 
-
-
-            if len(predicted_states)==5 and action==2:
+            if len(predicted_states) == 5 and action == 2:
                 append = True
-                #world.memory_in.append(input_states[action])
+                world.memory_in.append(input_states[action])
 
-            elif len(predicted_states)==4 and rand<0.1:
+            elif len(predicted_states) == 4 and rand < 0.1:
                 append = True
-                #world.memory_in.append(input_states[action])
-            elif len(predicted_states)==5 and rand<0.1 and action!=2:
+                world.memory_in.append(input_states[action])
+            elif len(predicted_states) == 5 and rand < 0.1 and action != 2:
                 append = True
-                #world.memory_in.append(input_states[action])
-
+                world.memory_in.append(input_states[action])
 
             extrinsic.memory.append(predicted_states[action][3:6])
 
-            if len(predicted_states)==4 and action>1:
-                action+=1
+            if len(predicted_states) == 4 and action > 1:
+                action += 1
             env.perform_action(action)
 
-
             i += 1
-            if i > 1000:
+            if i > Params.n_iterations_before_stop.value:
                 i = 0
                 env.reset()
                 extrinsic.reset_memory()
             if finish:
-                # robobo.wait(1)
                 env.robobo.stopMotors()
                 print("\n\n\n\nRobobo Simulation Complete\n\n\n")
                 env.reset()
-                eps -= 0.02
+                eps -= Params.eps_decr.value
                 train_count += 1
-                print("train count",train_count)
+                print("train count", train_count)
 
                 # TRAINING EXTRINSIC MODULE
                 X = extrinsic.memory
@@ -192,9 +185,59 @@ class Environment:
                 extrinsic.reset_memory()
                 finish = False
 
+    def interact(self):
+        intrinsic = self.cognitive.intrinsic
+        extrinsic = self.cognitive.extrinsic
+        world = self.cognitive.world
+        env = self
 
+        eps = Params.eps.value
+        train_count = 0
+        i = 0
+        finish = False
 
+        while True:
+            real_state = env.get_env_state()
+            if real_state[5] > 400:  ##finish
+                finish = True
 
+            intrinsic.memory.append(real_state)
+
+            _, predicted_states = world.predict(real_state)
+
+            if random.random() < eps:
+                action = intrinsic.get_action(predicted_states)
+                print("Novelty", action)
+            else:
+                action = extrinsic.get_action(predicted_states)
+                print("Neural", action)
+
+            extrinsic.memory.append(predicted_states[action][3:6])
+
+            if len(predicted_states) == 4 and action > 1:
+                action += 1
+            env.perform_action(action)
+
+            i += 1
+            if i > Params.n_iterations_before_stop.value:
+                i = 0
+                env.reset()
+                extrinsic.reset_memory()
+            if finish:
+                env.robobo.stopMotors()
+                print("Robobo Simulation Complete\n\n\n")
+                env.reset()
+                eps -= Params.eps_decr.value
+                train_count += 1
+                print("train count", train_count)
+
+                # TRAINING EXTRINSIC MODULE
+                X = extrinsic.memory
+                y = [x / len(X) for x in range(len(X))]
+                extrinsic.train(X, y)
+                extrinsic.save(train_count)
+                extrinsic.reset_memory()
+                finish = False
 
 
 if __name__ == '__main__':
