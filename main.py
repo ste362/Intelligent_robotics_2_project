@@ -1,4 +1,6 @@
 import random
+
+import numpy as np
 import torch
 from robobopy.Robobo import Robobo
 from robobopy.utils.Color import Color
@@ -41,15 +43,11 @@ class Environment:
         env.robobo.moveTiltTo(105, 100)
 
     def get_env_state(self):
-        loc = self.sim.getRobotLocation(0)
-        x = loc['position']['x']
-        y = loc['position']['z']
-        theta = loc['rotation']['y']
         ir = self.robobo.readIRSensor(IR.FrontC)
         red_pos = self.robobo.readColorBlob(Color.RED).posx
         red_size = self.robobo.readColorBlob(Color.RED).size
         #print(red_pos)
-        return [x, y, theta, ir, red_pos, red_size]
+        return [ir, red_pos, red_size]
 
     def compute_target_angle(self, action):
         if action == 0:
@@ -106,58 +104,49 @@ class Environment:
     def interact_nn(self):
         intrinsic = self.cognitive.intrinsic
         extrinsic = self.cognitive.extrinsic
-        world = self.cognitive.world
+        world = self.cognitive.world_nn
         env = self
 
         eps = Params.eps.value
         train_count = 0
         i = 0
-        world.memory_in.append([0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0])
+        world.memory_in.append([0, 0, 0, 0, 0, 1, 0, 0])
         finish = False
-        predicted_state = []
-        append = True
+
         while True:
 
             real_state = env.get_env_state()
-            real_state.extend(action)
-            # print("\n predicted state",predicted_state,"\n real state",real_state,"\n")
-            if real_state[5] > 400:  ##finish
+
+            if real_state[2] > 400:  ##finish
                 finish = True
 
-            if append:
-                intrinsic.memory.append(real_state)
-                append = False
 
-            if i % 10 == 0:
+            intrinsic.memory.append(real_state)
+
+
+            if i % 10 == 0 and i!=0:
                 env.robobo.stopMotors()
                 world.train(world.memory_in, world.memory_out)
                 world.save()
 
             input_states, predicted_states = world.predict(real_state)
-            # perception = [robobo.readIRSensor(IR.FrontC), robobo.readColorBlob(Color.RED).posx,robobo.readColorBlob(Color.RED).size]
+
+
 
             rand = random.random()
-            print(rand)
+
             if rand < eps:
-                # rand = np.random.random()
-                action = intrinsic.get_action(predicted_states)  # action = 2 if len(predicted_states)==5 else np.random.random_integers(0,1)  #
+                action = intrinsic.get_action(predicted_states)
+
                 print("Novelty", action)
             else:
                 action = extrinsic.get_action(predicted_states)
                 print("Neural", action)
 
-            if len(predicted_states) == 5 and action == 2:
-                append = True
-                world.memory_in.append(input_states[action])
 
-            elif len(predicted_states) == 4 and rand < 0.1:
-                append = True
-                world.memory_in.append(input_states[action])
-            elif len(predicted_states) == 5 and rand < 0.1 and action != 2:
-                append = True
-                world.memory_in.append(input_states[action])
+            world.memory_in.append(input_states[action])
 
-            extrinsic.memory.append(predicted_states[action][3:6])
+            extrinsic.memory.append(predicted_states[action])
 
             if len(predicted_states) == 4 and action > 1:
                 action += 1
@@ -198,7 +187,7 @@ class Environment:
 
         while True:
             real_state = env.get_env_state()
-            if real_state[5] > 400:  ##finish
+            if real_state[2] > 400:  ##finish
                 finish = True
 
             intrinsic.memory.append(real_state)
@@ -212,7 +201,7 @@ class Environment:
                 action = extrinsic.get_action(predicted_states)
                 print("Neural", action)
 
-            extrinsic.memory.append(predicted_states[action][3:6])
+            extrinsic.memory.append(predicted_states[action])
 
             if len(predicted_states) == 4 and action > 1:
                 action += 1

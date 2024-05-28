@@ -3,7 +3,7 @@ from intrinsic_module import IntrinsicModule
 
 
 class Params(Enum):
-    eps = 0.9
+    eps = 0.99
     eps_decr = 0.02
     n_iterations_before_stop = 300
 
@@ -37,7 +37,7 @@ class Params(Enum):
         mem_in_size = 500
         mem_out_size = 500
 
-        nn_in_path = 'models/world/world_nn.pt'
+        nn_in_path = 'models/world/wold_nn.pt'
         nn_out_path = 'models/world/world_nn.pt'
 
         debug = False
@@ -55,14 +55,14 @@ class Params(Enum):
 
         mem_size = 50
 
-        nn_in_path = 'models/extrinsic/extrinsic_nn_9.pt'
+        nn_in_path = 'models/extrinsic/extrinsic_nn.pt'
         nn_out_path = 'models/extrinsic/extrinsic_nn.pt'
 
         debug = False
 
     @skip
     class Intrinsic(Enum):
-        n = 1/4
+        n = 2
         norm: IntrinsicModule.Norm = IntrinsicModule.Norm.L2
 
         debug = False

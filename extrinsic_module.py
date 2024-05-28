@@ -72,7 +72,7 @@ class ExtrinsicModule:
     def get_action(self, predicted_states):
         utility = []
         for predicted_state in predicted_states:
-            input_state = predicted_state[3:6]
+            input_state = predicted_state[:]
             # if perception[2] > 0 and a!=2:
             #    input_state=[0,0,0]
             # if perception[2] == 0 and a != 2:

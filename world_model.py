@@ -12,7 +12,7 @@ class WorldModelNN:
 
     def __init__(self, lr=0.001, num_epochs=10, memory_in=deque(maxlen=500), memory_out=deque(maxlen=500), in_path=None,
                  out_path=None, device='cpu', debug=False, batch_size=2):
-        self.nn = NeuralNetwork(11, 64, 6).to(device)
+        self.nn = NeuralNetwork(8, 64, 3).to(device)
         self.optimizer = optim.Adam(self.nn.parameters(), lr=lr)
         self.criterion = nn.MSELoss()
         self.num_epochs = num_epochs
@@ -29,6 +29,7 @@ class WorldModelNN:
     def train(self, X, y):
 
         print("Start Train World Model ....\n")
+
         X = torch.tensor(X, dtype=torch.float32)
         y = torch.tensor(y, dtype=torch.float32)
 
@@ -44,7 +45,7 @@ class WorldModelNN:
                 target = target.to(self.device)
 
                 outputs = self.nn(inputs)
-                loss = self.criterion(outputs, torch.reshape(target, (len(target), 6)))
+                loss = self.criterion(outputs, torch.reshape(target, (len(target), 3)))
 
                 # Backward pass e ottimizzazione
                 self.optimizer.zero_grad()
@@ -58,7 +59,9 @@ class WorldModelNN:
         print("Addestramento completato!")
 
     def load(self):
-        if self.in_path is not None:
+        print("Load Model")
+        print(self.in_path)
+        if self.in_path is not None and os.path.exists(self.in_path):
             self.nn.load_state_dict(torch.load(self.in_path))
             self.nn.eval()
         else:
@@ -74,7 +77,7 @@ class WorldModelNN:
         input_states = []
         predicted_states = []
         for action in range(len(self.actions)):
-            if action == 2 and state[3] > 15:
+            if action == 2 and state[0] > 15:
                 print("Muro")
             else:
                 ## create one hot vector for the action
@@ -86,11 +89,13 @@ class WorldModelNN:
                 input_states.append(input_state)
 
                 input_state = torch.tensor(input_state, dtype=torch.float32)
+
                 input_state = input_state.to(self.device)
                 out = self.nn(input_state)
                 out = out.cpu()
+
                 predicted_states.append(out.detach().numpy())
-                #print(list(out.detach().numpy()))
+
 
         return input_states, predicted_states
 
@@ -130,18 +135,19 @@ class WorldModel:
     def predict(self, state):
         input_states = []
         predicted_states = []
-        x, y, theta, ir, red_pos, red_size = state
+        ir, red_pos, red_size = state
         for action in range(len(self.actions)):
             if action == 2:  ## dritto
-                angle = np.deg2rad(theta)
-                new_x = x + 60 * np.sin(angle)
-                new_y = y + 60 * np.cos(angle)
+                #angle = np.deg2rad(theta)
+                #new_x = x + 60 * np.sin(angle)
+                #new_y = y + 60 * np.cos(angle)
                 if red_size > 0:
-                    predicted_states.append([new_x, new_y, theta, ir, red_pos, red_size + 150])
-                elif state[3] < 15:  # muro
-                    predicted_states.append([new_x, new_y, theta, ir, red_pos, red_size])
+                    predicted_states.append([ir, red_pos, red_size + 150])
+                elif state[0] < 15:  # muro
+                    predicted_states.append([ir, red_pos, red_size])
 
             else:
+                """
                 new_angle = theta + self.actions[action]
                 if new_angle > 359:
                     new_angle -= 360
@@ -151,7 +157,7 @@ class WorldModel:
                 #se sto girando a destra
 
                 new_red_pos = red_pos
-                """
+                
                 d = 500 - ir
                 if d < 0: d = 0
 
@@ -176,6 +182,6 @@ class WorldModel:
                             new_red_pos = 0
                         print(new_red_pos,action)
                 """
-                predicted_states.append([x, y, new_angle, ir, new_red_pos, red_size])
+                predicted_states.append([ir, red_pos, red_size])
 
         return input_states, predicted_states

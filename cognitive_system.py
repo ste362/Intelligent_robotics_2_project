@@ -38,3 +38,15 @@ class CognitiveSystem:
             out_path=Params.World.nn_path.value,
             debug=Params.World.debug.value,
         )
+
+        self.world_nn = WorldModelNN(
+            lr=Params.World.lr.value,
+            num_epochs=Params.World.epochs.value,
+            batch_size=Params.World.batch_size.value,
+            memory_in=input_world_memory,
+            memory_out=memory,
+            device=device,
+            in_path=Params.World.nn_path.value,
+            out_path=Params.World.nn_path.value,
+            debug=Params.World.debug.value,
+        )
