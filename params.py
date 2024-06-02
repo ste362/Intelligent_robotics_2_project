@@ -3,9 +3,9 @@ from aenum import Enum, skip
 
 class Params(Enum):
     error_margin_rotation = 4.5  # degrees
-    eps = 0.4
-    eps_decr = 0.0
-    n_iterations_before_stop = 700
+    eps = 1
+    eps_decr = 0.04
+    n_iterations_before_stop = 400
     use_neural_world_model = True
 
     @skip
@@ -29,21 +29,23 @@ class Params(Enum):
     @skip
     class World(Enum):
         lr = 0.001
-        epochs = 10
-        batch_size = 4
+        epochs = 5
+        batch_size = 2
 
-        input_nn_size = 8
-        output_nn_size = 3
+        input_nn_size = 11
+        output_nn_size = 6
         hidden_nn_size = 64
 
-        mem_in_size = 500
-        mem_out_size = 500
+        mem_in_size = 1000
+        mem_out_size = 1000
+
 
         train = True
-        nn_in_path = 'models/world/world_nn_0.pt'
-        nn_out_path = 'models/world/world_nn.pt'
+        train_set_size = 1000
+        nn_in_path = 'models/world/world_nn_new_0.pt'
+        nn_out_path = 'models/world/world_nn_new_2.pt'
 
-        debug = False
+        debug = True
 
     @skip
     class Extrinsic(Enum):
@@ -55,18 +57,21 @@ class Params(Enum):
         output_nn_size = 1
         hidden_nn_size = 64
 
-        mem_size = 50
+        mem_size = 500
 
-        train = False
-        nn_in_path = 'models/extrinsic/extrinsic_nn_with_math_world_working.pt'
-        nn_out_path = 'models/extrinsic/eliminami.pt'
+        train = True
+        train_set_size = 500
+        nn_in_path = 'models/extrinsic/extrinsic_nn_with_nn_world.pt'
+        nn_out_path = 'models/extrinsic/extrinsic_nn_with_nn_world.pt'
 
-        debug = False
+        debug = True
 
     @skip
     class Intrinsic(Enum):
-        n = 2
-        norm = 2
+        n = 1  # 1/2
+        norm = 1  # 2
+
+        memory_size = 500
 
         debug = False
 

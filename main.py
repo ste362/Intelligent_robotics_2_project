@@ -43,11 +43,14 @@ class Environment:
         env.robobo.moveTiltTo(105, 100)
 
     def get_env_state(self):
+        loc = self.sim.getRobotLocation(0)
+        y = loc['position']['x']
+        x = loc['position']['z']
+        theta = loc['rotation']['y']
         ir = self.robobo.readIRSensor(IR.FrontC)
         red_pos = self.robobo.readColorBlob(Color.RED).posx
         red_size = self.robobo.readColorBlob(Color.RED).size
-        #print(red_pos)
-        return [ir, red_pos, red_size]
+        return [x, y, theta, ir, red_pos, red_size]
 
     def get_red_blob_pos(self):
         blob = self.robobo.readColorBlob(Color.RED)
@@ -105,7 +108,27 @@ class Environment:
             # print('error:{}\n'.format(error), flush=True)
             # robobo.stopMotors()
 
+    def finish(self, real_state):
+        blob_pos_x, blob_pos_y = env.get_red_blob_pos()
+        return (15 <= blob_pos_x <= 85 and 85 <= blob_pos_y <= 100) or real_state[5] > 450
+
     def interact_nn(self):
+        def can_insert(action_count, action):
+            if action<2:
+                action=0
+            elif action>2:
+                action=2
+            else:
+                action=1
+            if action_count[action]-min(action_count) < 5 or True:
+                action_count[action] += 1
+                return True
+            return True
+        #
+        #
+        #    NEURAL WORLD MODEL
+        #
+        #
         if not Params.Extrinsic.train.value:
             print(f"{Colors.WARNING}!!Train not enabled for EXTRINSIC Module!!{Colors.ENDC}")
 
@@ -120,49 +143,58 @@ class Environment:
         eps = Params.eps.value
         train_count = 0
         i = 0
-        world.memory_in.append([0, 0, 0, 0, 0, 1, 0, 0])
-        finish = False
+        #world.memory_in.append([0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0])
         reached_times = 0
-
+        path = []
+        pre_real_state=None
+        action_count=[0,0,0]
+        append=False
         while True:
-
             real_state = env.get_env_state()
-
-            if real_state[2] > 400:  ##finish
-                finish = True
-
             intrinsic.memory.append(real_state)
 
-            if i % 10 == 0 and Params.World.train.value:
+            if append:
+                #result = [a - b for a, b in zip(real_state, pre_real_state)]
+                world.memory_out.append(real_state)
+
+            if i != 0 and i % 50 == 0 and Params.World.train.value:
                 env.robobo.stopMotors()
+                print(len(world.memory_in), len(world.memory_out))
                 world.train(world.memory_in, world.memory_out)
                 world.save()
 
             input_states, predicted_states = world.predict(real_state)
 
-            rand = random.random()
-
-            if rand < eps:
+            if random.random() < eps:
                 action = intrinsic.get_action(predicted_states)
                 print(f"Novelty {Colors.OKCYAN}{world.actions[action]}{Colors.ENDC}")
             else:
-                action = extrinsic.get_action(predicted_states)
+                action = extrinsic.get_action(predicted_states[3:6])
                 print(f"Neural {Colors.OKCYAN}{world.actions[action]}{Colors.ENDC}")
 
-            world.memory_in.append(input_states[action])
-
-            extrinsic.memory.append(predicted_states[action])
-
+            real_action=action
             if len(predicted_states) == 4 and action > 1:
-                action += 1
-            env.perform_action(action)
+                real_action+= 1
 
+            print(action_count)
+            if can_insert(action_count, real_action):
+                world.memory_in.append(input_states[action])
+                append=True
+
+            else:
+                append=False
+
+            path.append(predicted_states[action][3:6])
+
+            env.perform_action(real_action)
+
+            pre_real_state=real_state[:]
             i += 1
             if i > Params.n_iterations_before_stop.value:
                 i = 0
                 env.reset()
                 extrinsic.reset_memory()
-            if finish:
+            if env.finish(real_state):
                 reached_times += 1
                 env.robobo.stopMotors()
                 print(f"Robobo Simulation Complete ({Colors.BOLD}{reached_times}{Colors.ENDC})\n\n\n")
@@ -171,17 +203,24 @@ class Environment:
 
                 # TRAINING EXTRINSIC MODULE
                 if Params.Extrinsic.train.value:
-                    train_count += 1
-                    X = extrinsic.memory
-                    y = [x / len(X) for x in range(len(X))]
-                    extrinsic.train(X, y)
-                    print("train count", train_count)
-                    extrinsic.save(train_count)
+                    extrinsic.memory_in.extend(path)
+                    values = [(np.e ** (-x / 16)) for x in range(len(path), 0, -1)]
 
-                extrinsic.reset_memory()
-                finish = False
+                    extrinsic.memory_out.extend(values)
+                    X = extrinsic.memory_in
+                    y = extrinsic.memory_out
+
+                    extrinsic.train(X, y)
+                    extrinsic.save(train_count)
+                    train_count += 1
+                    path = []
 
     def interact(self):
+        #
+        #
+        #    MATHEMATICAL WORLD MODEL
+        #
+        #
         intrinsic = self.cognitive.intrinsic
         extrinsic = self.cognitive.extrinsic
         world = self.cognitive.world
@@ -193,17 +232,12 @@ class Environment:
         eps = Params.eps.value
         train_count = 0
         i = 0
-        finish = False
         reached_times = 0
+        path = []
 
         while True:
             real_state = env.get_env_state()
-            blob_pos_x, blob_pos_y = env.get_red_blob_pos()
-            if (15 <= blob_pos_x <= 85 and 85 <= blob_pos_y <= 100) or real_state[2] > 450:  ##finish
-                finish = True
-
             intrinsic.memory.append(real_state)
-
             _, predicted_states = world.predict(real_state)
 
             if random.random() < eps:
@@ -213,9 +247,9 @@ class Environment:
                 action = extrinsic.get_action(predicted_states)
                 print(f"Neural {Colors.OKCYAN}{world.actions[action]}{Colors.ENDC}")
 
-            extrinsic.memory.append(predicted_states[action])
+            path.append(predicted_states[action][3:6])
 
-            if len(predicted_states) == 4 and action > Params.Action.forward.value:
+            if len(predicted_states) == 4 and action >= Params.Action.forward.value:
                 action += 1
             env.perform_action(action)
 
@@ -224,26 +258,30 @@ class Environment:
                 i = 0
                 env.reset()
                 extrinsic.reset_memory()
-            if finish:
-                reached_times+=1
+            if env.finish(real_state):
+                reached_times += 1
                 env.robobo.stopMotors()
                 print(f"Robobo Simulation Complete ({Colors.BOLD}{reached_times}{Colors.ENDC})\n\n\n")
                 env.reset()
                 eps -= Params.eps_decr.value
                 # TRAINING EXTRINSIC MODULE
                 if Params.Extrinsic.train.value:
-                    X = extrinsic.memory
-                    y = [x / len(X) for x in range(len(X))]
+                    extrinsic.memory_in.extend(path)
+                    values = [(np.e ** (-x / 16)) for x in range(len(path), 0, -1)]
+
+                    extrinsic.memory_out.extend(values)
+                    X = extrinsic.memory_in
+                    y = extrinsic.memory_out
+
                     extrinsic.train(X, y)
                     extrinsic.save(train_count)
                     train_count += 1
-                    print("train count", train_count)
-                    extrinsic.reset_memory()
-                finish = False
+                    path = []
 
 
 if __name__ == '__main__':
     env = Environment()
+    env.reset()
     if Params.use_neural_world_model.value:
         print(f'{Colors.OKBLUE}Using NEURAL WORLD MODEL!{Colors.ENDC}')
         env.interact_nn()

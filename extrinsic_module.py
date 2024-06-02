@@ -17,29 +17,34 @@ class ExtrinsicModule:
                  nn_hidden_size=64,
                  nn_output_size=1,
                  memory=deque(maxlen=50), lr=0.001, num_epochs=10,
-                 in_path=None, out_path=None, device='cpu', debug=False, batch_size=2):
+                 in_path=None, out_path=None, device='cpu', debug=False,
+                 batch_size=2, train_set_size=100):
         self.nn = NeuralNetwork(nn_input_size, nn_hidden_size, nn_output_size).to(device)
+        self.nn_output_size = nn_output_size
         self.optimizer = optim.Adam(self.nn.parameters(), lr=lr)
         self.criterion = nn.BCELoss()
         self.num_epochs = num_epochs
-        self.memory = memory
+        self.memory_in = memory
+        self.memory_out = deque(maxlen=memory.maxlen)
         self.mem_size = memory.maxlen
         self.out_path = out_path
         self.in_path = in_path
-        self.load()
         self.debug = debug
         self.device = device
         self.batch_size = batch_size
+        self.train_set_size = train_set_size
+        self.load()
 
     def reset_memory(self):
         self.memory = deque(maxlen=self.mem_size)
 
     def train(self, X, y):
-        if self.debug: print("Start Train Extrinsic Model ....\n")
+        if self.debug: print("\nStart Train Extrinsic Model ....")
         X = torch.tensor(X, dtype=torch.float32)
         y = torch.tensor(y, dtype=torch.float32)
         dataset = TensorDataset(X, y)
-        train_loader = DataLoader(dataset, batch_size=self.batch_size, shuffle=True)
+        sampler = torch.utils.data.RandomSampler(dataset, num_samples=min(len(y), self.train_set_size))
+        train_loader = DataLoader(dataset, batch_size=self.batch_size, sampler=sampler)
 
         # Addestrare la rete
         for epoch in range(self.num_epochs):
@@ -49,7 +54,7 @@ class ExtrinsicModule:
                 target = target.to(self.device)
 
                 outputs = self.nn(inputs)
-                loss = self.criterion(outputs, torch.reshape(target, (len(target),1)))
+                loss = self.criterion(outputs, torch.reshape(target, (len(target), self.nn_output_size)))
 
                 # Backward pass e ottimizzazione
                 self.optimizer.zero_grad()
@@ -58,13 +63,13 @@ class ExtrinsicModule:
 
             if self.debug and (epoch + 1) % 10 == 0:
                 print(
-                    f'Epoch [{epoch + 1}/{self.num_epochs}], Step [{i + 1}/{self.batch_size}], Loss: {loss.item():.4f}')
+                    f'Epoch [{epoch + 1}/{self.num_epochs}], Step [{i + 1}/{len(train_loader)}], Loss: {loss.item():.4f}')
 
-        if self.debug: print("Extrinsic train completed!")
+        if self.debug: print("Extrinsic train completed!\n")
 
     def load(self):
         if self.in_path is not None and os.path.exists(self.in_path):
-            self.nn.load_state_dict(torch.load(self.in_path))
+            self.nn.load_state_dict(torch.load(self.in_path, map_location=torch.device(self.device)))
             self.nn.eval()
             print(f'{Colors.OKGREEN}Model {self.in_path} correctly loaded for EXTRINSIC module!{Colors.ENDC}')
         else:
@@ -79,13 +84,13 @@ class ExtrinsicModule:
     def get_action(self, predicted_states):
         utility = []
         for predicted_state in predicted_states:
-            input_state = predicted_state[:]
+            input_state = predicted_state[3:6]
             input_state = torch.tensor(input_state,dtype=torch.float32)
             input_state = input_state.to(self.device)
             out = self.nn(input_state)
-            out=out.cpu()
+            out = out.cpu()
             utility.append(out.detach().numpy())
-        if self.debug: print("Neural output", utility)
+        #if self.debug: print("Neural output", utility)
 
         return np.argmax(utility)
 
@@ -107,7 +112,6 @@ class NeuralNetwork(nn.Module):
         x = self.relu(x)
         x = self.hidden2(x)
         x = self.relu(x)
-
         x = self.output(x)
         x = self.sigmoid(x)
         return x
