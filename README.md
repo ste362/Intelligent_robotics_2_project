@@ -1,74 +1,71 @@
-# Cognitive Architecture for an Autonomous Robot in Robobo Sim
+# 🧠🤖 Cognitive Architecture for an Autonomous Robot in Robobo Sim
 
-## Project Overview
-This project is part of the *Intelligent Robotics II* course for the academic year 2023/2024. It focuses on designing and implementing a **Cognitive Architecture** for an autonomous robot in the **Robobo Simulator** using **Python** and relevant libraries.
+## 🌟 Project Overview
+This project is part of the *Intelligent Robotics II* course for the academic year **2023/2024**. We focused on designing and implementing a **Cognitive Architecture** for an autonomous robot in the **Robobo Simulator**, using **Python** and some awesome libraries! 🐍
 
-## Authors
-- **Ettore Caputo**
-- **Stefano Iannicelli**
+##  Authors
+- **Ettore Caputo**   
+- **Stefano Iannicelli** 
 
+## 🚀 Introduction
+Our goal was to build a smart robot that could **navigate autonomously** and make decisions on its own in a simulated world 🌍🛣️. We designed a **deliberative decision-making system** that includes a **World Model** and a **Utility Model**.
 
-## Introduction
-This project aims to develop a **cognitive architecture** that enables a robot to autonomously navigate and achieve its goals in a simulated environment. The architecture is based on a **deliberative decision system**, incorporating a **World Model** and a **Utility Model**.
+## 🤔 Problem Description
+How can a robot understand the world around it, predict what will happen next, and choose the best thing to do — all on its own? That's the challenge we tackled! 🔍⚙️
 
-## Problem Description
-The challenge is to design a system that allows the robot to process sensor data, predict future states, and make decisions to reach its objectives autonomously.
+## 🕹️ Action Execution
+The robot moves using its **gyroscope sensor** 🔄. Rotations are calculated with specific math formulas to guide its motion precisely. 📐🤖
 
-## Action Execution
-The robot's movements are controlled using its **gyroscope sensor**, with rotations calculated using specific mathematical formulas.
+## 🧩 Proposed Solution
 
-## Proposed Solution
-The proposed solution consists of two main components:
+### 🌐 World Model
+This part predicts the robot’s future state based on its current situation and actions. It comes in two flavors:
 
-### World Model
-The **World Model** predicts the robot’s future states based on its current state and actions.
+#### 🔢 Mathematical Version
+- Uses good ol’ **algebra** to estimate future positions 
+- Integrates **sensor data** to update its understanding of the world
 
-#### Mathematical Version
-- Uses algebraic operations to estimate future positions.
-- Accounts for sensor data to update the state.
+#### 🧠 Neural Network Version
+- Includes **two neural networks**:
+  - One for **position prediction** 
+  - One for **sensor data prediction**   
+- Learns to generalize the robot’s behavior from experience 
 
-#### Neural Network Version
-- Implements two neural networks:
-  - One for **position prediction**.
-  - One for **sensor data prediction**.
-- Trained to generalize physical behavior in the simulation.
+### 🎯 Utility Model
+Helps the robot decide what to do next by evaluating how "good" different future states are.
 
-### Utility Model
-The **Utility Model** helps in decision-making using two components:
+#### 🔍 Intrinsic Module
+- Encourages the robot to explore new things using a **novelty function**   
+- Tracks past experiences to measure how “new” something is
 
-#### Intrinsic Module
-- Implements a **novelty function** to encourage exploration.
-- Computes novelty values based on past experiences.
+#### 🏆 Extrinsic Module
+- Uses a **neural network** to evaluate predicted states   
+- Trained with **Binary Cross-Entropy loss**  
+- Rewards states that bring the robot **closer to its goal** 
 
-#### Extrinsic Module
-- Uses a **neural network** to evaluate predicted states.
-- Utilizes a **Binary Cross-Entropy loss function** for training.
-- Rewards states closer to the goal with higher values.
+## 🧪 Training Strategy
+- Follows an **ϵ-greedy policy** for choosing actions   
+- Starts off curious (focused on **novelty**)   
+- Gradually learns from experience using the **neural network**   
+- With the **mathematical model**, it can learn a good policy in just **~10 minutes**! ⏱
 
-## Training Strategy
-- Uses an **ϵ-greedy policy** for learning.
-- Initially selects actions based on **novelty**.
-- Over time, decision-making shifts towards the **neural network**.
-- With the **mathematical World Model**, the robot learns a policy in approximately **10 minutes**.
+## 🛠️ Challenges and Solutions
+- The **neural World Model** had trouble accurately predicting future states 
+- One issue was likely **incorrect object size perception**   
+- This led to strange behavior — the robot avoided obstacles but didn’t go anywhere   
+- Future improvements should aim to **refine object perception** and improve model accuracy 
 
-## Challenges and Solutions
-- The **neural World Model** struggled to predict the next states accurately.
-- Issue likely due to incorrect **object size prediction**.
-- Resulted in erratic behavior where the robot avoided obstacles but failed to move forward.
-- Future improvements could focus on refining **object perception mechanisms**.
+## ✅ Conclusions
+- We built a **simple but effective cognitive architecture** 
+- The **mathematical World Model** enabled the robot to learn purposeful behavior after a short exploration phase 
+- The **neural version** shows promise but needs more training and tuning 
 
-## Conclusions
-- A **simple cognitive architecture** was successfully implemented.
-- The **mathematical World Model** provided effective results, enabling the robot to learn goal-directed behavior after an initial exploration phase.
-- The **neural World Model** requires further refinement for better performance.
-
-
-
-## Future Work
-- Improve the **neural World Model** for better prediction accuracy.
-- Experiment with different **reward functions**.
-- Test the system in more complex **simulated environments**.
+## 🔮 Future Work
+- Improve the **neural World Model**   
+- Try out different **reward functions** to fine-tune learning 
+- Test in more **complex environments** to push the limits 
 
 ---
 
-For more details, refer to the **project report**.
+📄 For more details, check out the **project report**! Thanks for reading! 😊🚀
+
